@@ -94,11 +94,6 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        const GITHUB_TOKEN = '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';
-        const REPO_OWNER = 'staysmart2018';
-        const REPO_NAME = 'grescore';
-        const FILE_PATH = 'scores.json'; // e.g., data/scores.json
-
         var chart;
 
         document.getElementById('greForm').addEventListener('submit', function(event) {
@@ -107,76 +102,39 @@
             var quantScore = document.getElementById('quantScore').value;
             var totalScore = parseInt(verbalScore) + parseInt(quantScore);
 
-            fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
-                headers: {
-                    'Authorization': `token ${GITHUB_TOKEN}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                const content = atob(data.content);
-                const scores = JSON.parse(content);
-                const newId = scores.length ? scores[scores.length - 1].id + 1 : 1;
+            // Retrieve existing scores from local storage or initialize an empty array
+            var scores = JSON.parse(localStorage.getItem('testScores')) || [];
 
-                const newScore = {
-                    id: newId,
-                    test: "GRE",
-                    verbal: verbalScore,
-                    quant: quantScore,
-                    total: totalScore
-                };
+            // Determine the new ID
+            var newId = scores.length ? scores[scores.length - 1].id + 1 : 1;
 
-                scores.push(newScore);
+            // Create a JSON object
+            var greScore = {
+                id: newId,
+                test: "GRE",
+                verbal: verbalScore,
+                quant: quantScore,
+                total: totalScore
+            };
 
-                const updatedContent = btoa(JSON.stringify(scores, null, 2));
+            // Add the new score to the array
+            scores.push(greScore);
 
-                fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        message: `Add new score with ID ${newId}`,
-                        content: updatedContent,
-                        sha: data.sha
-                    })
-                })
-                .then(response => response.json())
-                .then(() => {
-                    // Display the result
-                    document.getElementById('result').innerHTML = `<p>Your Verbal Score: ${verbalScore}</p><p>Your Quant Score: ${quantScore}</p><p>Total Score: ${totalScore}</p>`;
+            // Store the updated array in local storage
+            localStorage.setItem('testScores', JSON.stringify(scores));
 
-                    // Clear input fields
-                    document.getElementById('verbalScore').value = '';
-                    document.getElementById('quantScore').value = '';
+            // Display the result
+            document.getElementById('result').innerHTML = `<p>Your Verbal Score: ${verbalScore}</p><p>Your Quant Score: ${quantScore}</p><p>Total Score: ${totalScore}</p>`;
 
-                    // Update the chart and table
-                    updateChart(scores);
-                    updateTable(scores);
-                    toggleChartAndTableVisibility(scores);
-                });
-            });
+            // Clear input fields
+            document.getElementById('verbalScore').value = '';
+            document.getElementById('quantScore').value = '';
+
+            // Update the chart and table
+            updateChart(scores);
+            updateTable(scores);
+            toggleChartAndTableVisibility(scores);
         });
-
-        function fetchScores() {
-            fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
-                headers: {
-                    'Authorization': `token ${GITHUB_TOKEN}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                const content = atob(data.content);
-                const scores = JSON.parse(content);
-                updateChart(scores);
-                updateTable(scores);
-                toggleChartAndTableVisibility(scores);
-            });
-        }
 
         function updateChart(scores) {
             var labels = scores.map(score => `Test ${score.id}`);
@@ -264,81 +222,31 @@
         }
 
         function updateScore(id, field, value) {
-            fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
-                headers: {
-                    'Authorization': `token ${GITHUB_TOKEN}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                const content = atob(data.content);
-                const scores = JSON.parse(content);
-                const score = scores.find(score => score.id === id);
-                if (score) {
-                    score[field] = parseInt(value);
-                    score.total = parseInt(score.verbal) + parseInt(score.quant);
-                    const updatedContent = btoa(JSON.stringify(scores, null, 2));
+            var scores = JSON.parse(localStorage.getItem('testScores')) || [];
+            var score = scores.find(score => score.id === id);
 
-                    fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Authorization': `token ${GITHUB_TOKEN}`,
-                            'Accept': 'application/vnd.github.v3+json',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            message: `Update score with ID ${id}`,
-                            content: updatedContent,
-                            sha: data.sha
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(() => {
-                        fetchScores();
-                    });
-                }
-            });
+            if (score) {
+                score[field] = parseInt(value);
+                score.total = parseInt(score.verbal) + parseInt(score.quant);
+                localStorage.setItem('testScores', JSON.stringify(scores));
+                updateChart(scores);
+                updateTable(scores);
+            }
         }
 
         function deleteScore(id) {
-            fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
-                headers: {
-                    'Authorization': `token ${GITHUB_TOKEN}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                const content = atob(data.content);
-                const scores = JSON.parse(content);
-                const updatedScores = scores.filter(score => score.id !== id);
+            var scores = JSON.parse(localStorage.getItem('testScores')) || [];
+            var updatedScores = scores.filter(score => score.id !== id);
 
-                // Reassign IDs
-                updatedScores.forEach((score, index) => {
-                    score.id = index + 1;
-                });
-
-                const updatedContent = btoa(JSON.stringify(updatedScores, null, 2));
-
-                fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        message: `Delete score with ID ${id}`,
-                        content: updatedContent,
-                        sha: data.sha
-                    })
-                })
-                .then(response => response.json())
-                .then(() => {
-                    fetchScores();
-                });
+            // Reassign IDs
+            updatedScores.forEach((score, index) => {
+                score.id = index + 1;
             });
+
+            localStorage.setItem('testScores', JSON.stringify(updatedScores));
+            updateChart(updatedScores);
+            updateTable(updatedScores);
+            toggleChartAndTableVisibility(updatedScores);
         }
 
         function toggleChartAndTableVisibility(scores) {
@@ -355,7 +263,12 @@
 
         // Initialize chart and table on page load with any existing data
         document.addEventListener('DOMContentLoaded', function() {
-            fetchScores();
+            var scores = JSON.parse(localStorage.getItem('testScores')) || [];
+            toggleChartAndTableVisibility(scores);
+            if (scores.length) {
+                updateChart(scores);
+                updateTable(scores);
+            }
         });
     </script>
 </body>
